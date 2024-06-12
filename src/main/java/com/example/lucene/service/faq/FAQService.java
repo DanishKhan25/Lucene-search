@@ -1,5 +1,6 @@
-package com.example.lucene.service.trip;
+package com.example.lucene.service.faq;
 
+import com.example.lucene.modal.domain.FAQ;
 import com.example.lucene.modal.domain.Trip;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.document.*;
@@ -9,6 +10,7 @@ import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
 import org.apache.lucene.queryparser.classic.ParseException;
+import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
@@ -22,42 +24,45 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
-public class TripService {
+public class FAQService {
     @Autowired
     private final Analyzer analyzer;
     @Autowired
     private final Directory directory;
 
-    public TripService(Analyzer analyzer, Directory directory) {
+    public FAQService(Analyzer analyzer, Directory directory) {
         this.analyzer = analyzer;
         this.directory = directory;
     }
 
-    public void addDocument(Trip trip) throws IOException {
+    public void addDocument(FAQ faq) throws IOException {
         IndexWriterConfig config = new IndexWriterConfig(analyzer);
         IndexWriter indexWriter = new IndexWriter(directory, config);
         Document doc = new Document();
-        doc.add(new StringField("id", trip.getId(), Field.Store.YES));
-        doc.add(new TextField("source", trip.getSource(), Field.Store.YES));
-        doc.add(new TextField("destination", trip.getDestination(),Field.Store.YES));
+        doc.add(new StringField("id", faq.getId(), Field.Store.YES));
+        doc.add(new TextField("question", faq.getQuestion(), Field.Store.YES));
+        doc.add(new StoredField("answer", faq.getAnswer()));
         indexWriter.addDocument(doc);
         indexWriter.close();
     }
 
-    public List<Trip> search(String queryString) throws IOException, ParseException {
-            List<Trip> result = new ArrayList<>();
+    public List<FAQ> search(String queryString) throws IOException, ParseException {
+        List<FAQ> result = new ArrayList<>();
 
         try (IndexReader reader = DirectoryReader.open(directory)) {
             IndexSearcher searcher = new IndexSearcher(reader);
-            MultiFieldQueryParser parser = new MultiFieldQueryParser(new String[]{"source", "destination"}, analyzer);
+            QueryParser parser = new QueryParser("question", analyzer);
             Query query = parser.parse(queryString);
             TopDocs topDocs = searcher.search(query, 10);
 
             for (ScoreDoc scoreDoc : topDocs.scoreDocs) {
                 Document doc = searcher.doc(scoreDoc.doc);
-                Trip trip =Trip.builder().
-                        id(doc.get("id")).source(doc.get("source")).destination(doc.get("destination")).build();
-                result.add(trip);
+                FAQ faq =FAQ.builder().
+                        id(doc.get("id")).
+                        question(doc.get("question")).
+                        answer(doc.get("answer")).
+                        build();
+                result.add(faq);
             }
         }
         return result;
